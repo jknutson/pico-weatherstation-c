@@ -12,3 +12,10 @@ _deps
 
 elf2uf2/
 generated/
+pico-sdk/
+weatherstation.bin
+weatherstation.dis
+weatherstation.elf
+weatherstation.elf.map
+weatherstation.hex
+weatherstation.uf2
