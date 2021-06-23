@@ -9,6 +9,7 @@
 #include "pico/stdlib.h"
 #include "hardware/adc.h"
 #include "hardware/gpio.h"
+#include "weatherstation.h"
 
 #ifdef PICO_DEFAULT_LED_PIN
 #define LED_PIN PICO_DEFAULT_LED_PIN
@@ -33,7 +34,16 @@ typedef struct {
 
 void read_from_dht(dht_reading *result);
 
+static char event_str[128];
+
+void gpio_event_string(char *buf, uint32_t events);
+
 void gpio_callback(uint gpio, uint32_t events) {
+#ifdef DEBUG
+	printf("gpio_cb_count: %i\n", gpio_cb_count);
+	gpio_event_string(event_str, events);
+	printf("GPIO %d %s\n", gpio, event_str);
+#endif
 	gpio_cb_count++;
 }
 
@@ -45,6 +55,9 @@ float calculate_wind_speed(int rotations) {
 }
 
 void reset_speed_counter(int* count) {
+#ifdef DEBUG
+	printf("resetting counter %i -> 0\n", *count);
+#endif
 	*count = 0;
 }
 
@@ -56,7 +69,7 @@ int main() {
 	gpio_init(LED_PIN);
 	gpio_set_dir(LED_PIN, GPIO_OUT);
 #endif
-	gpio_set_irq_enabled_with_callback(2, GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
+	gpio_set_irq_enabled_with_callback(2, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
 
 	adc_init();
 	adc_gpio_init(26);
@@ -136,6 +149,36 @@ void read_from_dht(dht_reading *result) {
 		}
 	} else {
 		result->crc_match = false;
-		// printf("CRC mismatch - crc:%i actual:%i\n", data[4], ((data[0] + data[1] + data[2] + data[3]) & 0xFF));
+#ifdef DEBUG
+		printf("CRC mismatch - crc:%i actual:%i\n", data[4], ((data[0] + data[1] + data[2] + data[3]) & 0xFF));
+#endif
 	}
+}
+
+static const char *gpio_irq_str[] = {
+        "LEVEL_LOW",  // 0x1
+        "LEVEL_HIGH", // 0x2
+        "EDGE_FALL",  // 0x4
+        "EDGE_RISE"   // 0x8
+};
+
+void gpio_event_string(char *buf, uint32_t events) {
+    for (uint i = 0; i < 4; i++) {
+        uint mask = (1 << i);
+        if (events & mask) {
+            // Copy this event string into the user string
+            const char *event_str = gpio_irq_str[i];
+            while (*event_str != '\0') {
+                *buf++ = *event_str++;
+            }
+            events &= ~mask;
+
+            // If more events add ", "
+            if (events) {
+                *buf++ = ',';
+                *buf++ = ' ';
+            }
+        }
+    }
+    *buf++ = '\0';
 }
