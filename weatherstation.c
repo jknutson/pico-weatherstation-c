@@ -9,6 +9,7 @@
 #include "pico/stdlib.h"
 #include "hardware/adc.h"
 #include "hardware/gpio.h"
+#include "hardware/irq.h"
 #include "weatherstation.h"
 
 #ifdef PICO_DEFAULT_LED_PIN
@@ -19,32 +20,30 @@ const uint DHT_PIN = 15;
 const uint MAX_TIMINGS = 85;
 const uint CM_IN_KM = 100000.0;
 const uint SECS_IN_HOUR = 3600;
+const float ANEMOMETER_RADIUS = 9;  // cm
+const uint ANEMOMETER_PIN = 2;
+const uint ANEMOMETER_DEBOUNCE_MS = 20;
 // 12-bit conversion, assume max value == ADC_VREF == 3.3 V
 const float ADC_CONVERSION_FACTOR = 3.3f / (1 << 12);
 const int SLEEP_INTERVAL_MS = 5000; // ms
-const float ANEMOMETER_RADIUS = 9;  // cm
 
-static int gpio_cb_count = 0;
+static int gpio_cb_cnt = 0;
 
 typedef struct {
+	bool crc_match;
 	float humidity;
 	float temp_celsius;
-	bool crc_match;
 } dht_reading;
 
 void read_from_dht(dht_reading *result);
 
-static char event_str[128];
-
-void gpio_event_string(char *buf, uint32_t events);
-
-void gpio_callback(uint gpio, uint32_t events) {
-#ifdef DEBUG
-	printf("gpio_cb_count: %i\n", gpio_cb_count);
-	gpio_event_string(event_str, events);
-	printf("GPIO %d %s\n", gpio, event_str);
-#endif
-	gpio_cb_count++;
+// void gpio_cb(uint gpio, uint32_t events) {
+void gpio_cb() {
+	gpio_cb_cnt++;
+	// TODO: figure out working debounce
+	// this sleep_ms(20) seems to make the it hang
+	// sleep_ms(20);
+	gpio_acknowledge_irq(2, IO_IRQ_BANK0);
 }
 
 float calculate_wind_speed(int rotations) {
@@ -69,12 +68,17 @@ int main() {
 	gpio_init(LED_PIN);
 	gpio_set_dir(LED_PIN, GPIO_OUT);
 #endif
-	gpio_set_irq_enabled_with_callback(2, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
+	gpio_set_pulls(ANEMOMETER_PIN, true, false);  // pull up
+	irq_set_exclusive_handler(IO_IRQ_BANK0, gpio_cb);
+	gpio_set_irq_enabled(ANEMOMETER_PIN, GPIO_IRQ_EDGE_RISE, true);
+	irq_set_enabled(IO_IRQ_BANK0, true);
+
+	// gpio_set_irq_enabled_with_callback(ANEMOMETER_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_cb);
 
 	adc_init();
 	adc_gpio_init(26);
-	adc_set_temp_sensor_enabled(true);
-	adc_set_round_robin(0x11); // 0x11 = 10001
+	// adc_set_temp_sensor_enabled(true);
+	// adc_set_round_robin(0x11); // 0x11 = 10001  // ADC0 & ADC4
 	adc_select_input(0);
 
 	for (;;) {
@@ -93,9 +97,9 @@ int main() {
 		// TODO: rollup data and emit in batches/averaged
 		printf("{\"adc%i\": %.2f}\n", sel_input, result_v);
 		// calculate wind speed
-		float wind_speed_cm_s = calculate_wind_speed(gpio_cb_count);
-		printf("{\"wind_speed\": %.2f, \"gpio_cb_count\": %i}\n", wind_speed_cm_s, gpio_cb_count);
-		reset_speed_counter(&gpio_cb_count);
+		float wind_speed_cm_s = calculate_wind_speed(gpio_cb_cnt);
+		printf("{\"wind_speed\": %.2f, \"gpio_cb_cnt\": %i}\n", wind_speed_cm_s, gpio_cb_cnt);
+		reset_speed_counter(&gpio_cb_cnt);
 		sleep_ms(SLEEP_INTERVAL_MS);
 	}
 }

@@ -21,7 +21,7 @@ add_executable(weatherstation
         )
 
 # Pull in our pico_stdlib which pulls in commonly used features
-target_link_libraries(weatherstation pico_stdlib hardware_adc)
+target_link_libraries(weatherstation pico_stdlib hardware_adc hardware_irq)
 
 pico_enable_stdio_usb(weatherstation 1)
 pico_enable_stdio_uart(weatherstation 0)
