@@ -56,49 +56,40 @@ double nround (double n, uint c)
 
 double wind_direction_deg(float voltage) {
 	double vround = nround(voltage, 1);
-	printf("vround: %f\n", vround);
-	if (vround == 0.4) {
+	if (vround == 2.9) {
 		return 0.0;
-	} else if (vround == 1.4) {
-		return 22.5;
-	} else if (vround == 1.2) {
-		return 45.0;
-	} else if (vround == 2.8) {
-		return 67.5;
-	} else if (vround == 2.7) {
-		return 90.0;
-	} else if (vround == 2.9) {
-		return 112.5;
-	} else if (vround == 2.2) {
-		return 135.0;
-	} else if (vround == 2.5) {
-		return 157.5;
-	} else if (vround == 1.8) {
-		return 180.0;
-	} else if (vround == 2.0) {
-		return 202.5;
-	} else if (vround == 0.7) {
-		return 225.0;
-	} else if (vround == 0.8) {
-		return 247.5;
-	} else if (vround == 0.1) {
-		return 270.0;
-	} else if (vround == 0.3) {
-		return 292.5;
-	} else if (vround == 0.2) {
-		return 315.0;
+	} else if (vround == 2.0 || vround == 2.1) {
+		return 45.0; // TODO: more precision here
 	} else if (vround == 0.6) {
+		return 90.0;
+	} else if (vround == 0.4 || vround == 1.1 || vround == 1.0) {
+		return 135.0; // TODO: more precision here
+	} else if (vround == 1.5 || vround == 1.6) {
+		return 180.0;
+	} else if (vround >= 2.5 && vround <= 2.7) {
+		return 225.0;
+	} else if (vround == 3.2) {
+		return 270.0;
+	} else if (vround == 2.9) {
+		return 292.5;
+	} else if (vround == 3.1) {
+		return 315.0;
+	} else if (vround == 2.8) {
 		return 337.5;
 	} else {
 		return 999.9;
 	}
 }
 
-float calculate_wind_speed(int rotations) {
+float calc_wind_speed_kmh(int rotations) {
 	// speed = ( (signals/2) * (2 * pi * radius) ) / time
 	float speed_km_s = ((rotations / 2) * (2 * 3.1415 * ANEMOMETER_RADIUS)) / CM_IN_KM;
-	float speed_km_h = speed_km_s * SECS_IN_HOUR;
-	return speed_km_h;
+	float speed_kmh = speed_km_s * SECS_IN_HOUR;
+	return speed_kmh;
+}
+
+float kmh_to_mph(float kmh) {
+	return (kmh * 0.621371);
 }
 
 void reset_speed_counter(int* count) {
@@ -116,7 +107,7 @@ int main() {
 	gpio_init(LED_PIN);
 	gpio_set_dir(LED_PIN, GPIO_OUT);
 #endif
-	gpio_set_pulls(ANEMOMETER_PIN, true, false);  // pull up
+	gpio_set_pulls(ANEMOMETER_PIN, false, true);  // pull down
 	irq_set_exclusive_handler(IO_IRQ_BANK0, gpio_cb);
 	gpio_set_irq_enabled(ANEMOMETER_PIN, GPIO_IRQ_EDGE_RISE, true);
 	irq_set_enabled(IO_IRQ_BANK0, true);
@@ -142,12 +133,14 @@ int main() {
 		if (reading.crc_match) {
 			printf("{\"humidity\": %.1f, \"temperature_f\": %.1f}\n", reading.humidity, fahrenheit);
 		}
-		// TODO: rollup data and emit in batches/averaged
-		printf("{\"adc%i\": %.2f, \"wind_direction_deg\": %f}\n", sel_input, result_v, wind_direction_deg(result_v));
+		if (sel_input == 0) {
+			printf("{\"wind_direction_deg\": %f, \"raw\": \"0x%03x\", \"v\": %f, \"v_rounded\": %f}\n", wind_direction_deg(result_v), result, result_v, nround(result_v, 1));
+		}
 		// calculate wind speed
-		float wind_speed_cm_s = calculate_wind_speed(gpio_cb_cnt);
-		printf("{\"wind_speed\": %.2f, \"gpio_cb_cnt\": %i}\n", wind_speed_cm_s, gpio_cb_cnt);
-		Reset_speed_counter(&gpio_cb_cnt);
+		float wind_speed_kmh = calc_wind_speed_kmh(gpio_cb_cnt);
+		float wind_speed_mph = kmh_to_mph(wind_speed_kmh);
+		printf("{\"wind_speed\": %.2f, \"wind_speed_kmh\": %.2f, \"gpio_cb_cnt\": %i}\n", wind_speed_mph, wind_speed_kmh, gpio_cb_cnt);
+		reset_speed_counter(&gpio_cb_cnt);
 		sleep_ms(SLEEP_INTERVAL_MS);
 	}
 }
