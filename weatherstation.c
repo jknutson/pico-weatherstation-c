@@ -27,6 +27,8 @@ const uint ANEMOMETER_DEBOUNCE_MS = 20;
 const float ADC_CONVERSION_FACTOR = 3.3f / (1 << 12);
 const int SLEEP_INTERVAL_MS = 5000; // ms
 
+#define DEBOUNCE_MS 20
+static bool is_debounceing = false;
 static int gpio_cb_cnt = 0;
 
 typedef struct {
@@ -37,13 +39,25 @@ typedef struct {
 
 void read_from_dht(dht_reading *result);
 
+int64_t debounce_alarm_callback(alarm_id_t id, void *user_data) {
+	is_debounceing = false;
+	return 0;
+}
+
+bool debounce() {
+	if (!is_debounceing) {
+		add_alarm_in_ms(DEBOUNCE_MS, &debounce_alarm_callback, NULL, false);
+		is_debounceing = true;
+		return false;
+	}
+	return true;
+}
+
 // void gpio_cb(uint gpio, uint32_t events) {
 void gpio_cb() {
-	gpio_cb_cnt++;
-	// TODO: figure out working debounce
-	// this sleep_ms(20) seems to make the it hang
-	// sleep_ms(20);
 	gpio_acknowledge_irq(2, IO_IRQ_BANK0);
+	if (debounce()) return;
+	gpio_cb_cnt++;
 }
 
 double nround (double n, uint c)
