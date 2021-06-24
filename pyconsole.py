@@ -11,13 +11,15 @@ with serial.Serial('/dev/ttyACM0', 115200) as ser:
         line = ser.readline().strip().decode('ascii')
         if line[0] == '{':
             data = json.loads(line)
+            print(data)
             keys = data.keys()
             if 'wind_speed' in keys:
                 print('publishing wind_speed')
                 client.publish('iot/pico/wind_speed', payload=data['wind_speed'])
             if 'wind_direction_deg' in keys:
-                print('publishing wind_direction_deg')
-                client.publish('iot/pico/wind_direction_deg', payload=data['wind_direction_deg'])
+                if data['wind_direction_deg'] > 337.5:
+                    print('publishing wind_direction_deg')
+                    client.publish('iot/pico/wind_direction_deg', payload=data['wind_direction_deg'])
             if 'humidity' in keys:
                 print('publishing humidity')
                 client.publish('iot/pico/humidity', payload=data['humidity'])
