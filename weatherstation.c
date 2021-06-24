@@ -46,6 +46,54 @@ void gpio_cb() {
 	gpio_acknowledge_irq(2, IO_IRQ_BANK0);
 }
 
+double nround (double n, uint c)
+{
+	double marge = pow(10, c);
+	double up = n * marge;
+	double ret = round(up) / marge;
+	return ret;
+}
+
+double wind_direction_deg(float voltage) {
+	double vround = nround(voltage, 1);
+	printf("vround: %f\n", vround);
+	if (vround == 0.4) {
+		return 0.0;
+	} else if (vround == 1.4) {
+		return 22.5;
+	} else if (vround == 1.2) {
+		return 45.0;
+	} else if (vround == 2.8) {
+		return 67.5;
+	} else if (vround == 2.7) {
+		return 90.0;
+	} else if (vround == 2.9) {
+		return 112.5;
+	} else if (vround == 2.2) {
+		return 135.0;
+	} else if (vround == 2.5) {
+		return 157.5;
+	} else if (vround == 1.8) {
+		return 180.0;
+	} else if (vround == 2.0) {
+		return 202.5;
+	} else if (vround == 0.7) {
+		return 225.0;
+	} else if (vround == 0.8) {
+		return 247.5;
+	} else if (vround == 0.1) {
+		return 270.0;
+	} else if (vround == 0.3) {
+		return 292.5;
+	} else if (vround == 0.2) {
+		return 315.0;
+	} else if (vround == 0.6) {
+		return 337.5;
+	} else {
+		return 999.9;
+	}
+}
+
 float calculate_wind_speed(int rotations) {
 	// speed = ( (signals/2) * (2 * pi * radius) ) / time
 	float speed_km_s = ((rotations / 2) * (2 * 3.1415 * ANEMOMETER_RADIUS)) / CM_IN_KM;
@@ -95,11 +143,11 @@ int main() {
 			printf("{\"humidity\": %.1f, \"temperature_f\": %.1f}\n", reading.humidity, fahrenheit);
 		}
 		// TODO: rollup data and emit in batches/averaged
-		printf("{\"adc%i\": %.2f}\n", sel_input, result_v);
+		printf("{\"adc%i\": %.2f, \"wind_direction_deg\": %f}\n", sel_input, result_v, wind_direction_deg(result_v));
 		// calculate wind speed
 		float wind_speed_cm_s = calculate_wind_speed(gpio_cb_cnt);
 		printf("{\"wind_speed\": %.2f, \"gpio_cb_cnt\": %i}\n", wind_speed_cm_s, gpio_cb_cnt);
-		reset_speed_counter(&gpio_cb_cnt);
+		Reset_speed_counter(&gpio_cb_cnt);
 		sleep_ms(SLEEP_INTERVAL_MS);
 	}
 }
