@@ -5,62 +5,60 @@
 
 const float VIN  = 3.3;   // volts
 const float R2   = 4700;  // ohm
-// const float angles[16][2] = {
-const float angles[5][2] = {
-	{0.0,  33000.0},
-	{22.5, 6570.0},
+const float angles[16][2] = {  // TODO: move to separate file
+	{0,  33000},
+	{22.5, 6570},
 	{45, 8200},
 	{67.5, 891},
-	{90, 1000}
+	{90, 1000},
+	{112.5, 688},
+	{135, 2200},
+	{157.5, 1410},
+	{180, 3900},
+	{202.5, 3140},
+	{225, 16000},
+	{247.5, 14120},
+	{270, 120000},
+	{292.5, 42120},
+	{315, 64900},
+	{337.5, 21880}
 };
 
 int get_closest_idx(float r1) {
-	int num_angles = sizeof(angles) / sizeof(angles[0]);
-	int i, closest_i = 0;
+	int angles_len = sizeof(angles) / sizeof(angles[0]);
 	float closest = fabsf(r1 - angles[0][1]);
-	for(i = 0; i < num_angles; i++) {
+	int closest_i = 0;
+	for(int i = 0; i < angles_len; i++) {
 		float diff = fabsf(r1 - angles[i][1]);
-#ifdef DEBUG
-		printf("diff: %f, r1: %f, angles[i][1]: %f\n", diff, r1, angles[i][1]);
-#endif
 		if (diff < closest) {
 			closest = fabsf(r1 - angles[i][1]);
 			closest_i = i;
 		}
-#ifdef DEBUG
-		printf("diff: %f, closest: %f, idx: %i, chosen_i: %i\n", diff, closest, i, closest_i);
-#endif
 	}
 	return closest_i;
 }
 
-
-float voltage_divider(float vin, float r1, float r2) {
-	return (vin * r2) / (r1 + r2);
-}
-
-float vout(float r1) {
-	return voltage_divider(VIN, r1, R2);
-}
-
-float r1(float vout){
-	// TODO: given vout & r2 get r1
-	return ((R2 * VIN) / vout) - R2;
+float r1(float r2, float vin, float vout){
+	return ((r2 * vin) / vout) - r2;
 	return vout;
+}
+
+// this is the library-style interface to this code
+float get_angle(float r2, float vin, float vout) {
+	int idx = get_closest_idx(r1(r2, vin, vout));
+	return angles[idx][0];
 }
 
 int main(int argc, char *argv[]) {
 	if (argc == 2) {
 		float vout = atof(argv[1]);
 #ifdef DEBUG
-		printf("vout: %f\n", vout);
-		printf("r1: %f\n", r1(vout));
-#endif
-		int closest_idx = get_closest_idx(r1(vout));
-#ifdef DEBUG
+		printf("r1: %f\n", r1(R2, VIN, vout));
+		int closest_idx = get_closest_idx(r1(R2, VIN, vout));
 		printf("closest_idx: %i\n", closest_idx);
-#endif
 		printf("angle: %f resistance: %f\n", angles[closest_idx][0], angles[closest_idx][1]);
+#endif
+		printf("angle: %f\n", get_angle(R2, VIN, vout));
 	} else {
 		printf("1 argument required (r1)\n");
 		return 1;
