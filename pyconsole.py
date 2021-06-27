@@ -8,7 +8,12 @@ from statistics import mean, mode, StatisticsError
 
 client = mqtt.Client()
 mqtt_host = os.getenv('MQTT_HOST', 'localhost')
-client.connect(mqtt_host, 1883, 60)
+try:
+    client.connect(mqtt_host, 1883, 60)
+except ConnectionRefusedError:
+    print(f"error connecting to mqtt_host:{mqtt_host}")
+    print('did you set the `MQTT_HOST` environment variable?')
+    exit(1)
 
 publish_interval = 30  # seconds
 publish_every = True  # emit every sample as well as mean
