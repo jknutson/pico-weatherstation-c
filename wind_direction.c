@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "wind_direction.h"
 
 const float VIN  = 3.3;   // volts
@@ -49,63 +50,24 @@ float get_angle(float r2, float vin, float vout) {
 	return angles[idx][0];
 }
 
-// TODO: save chars to a char[], not printf
-void get_direction4(float ang) {
+// get direction of wind with 4 bits of precision
+void get_direction4(float ang, char *direction) {
 	switch((int)ang/90) {
 		case 0 :
 		case 4 :
-			printf("north");
+			strncpy(direction, "north", 5);
 			break;
 		case 1 :
-			printf("east");
+			strncpy(direction, "east", 4);
 			break;
 		case 2 :
-			printf("south");
+			strncpy(direction, "south", 5);
 			break;
 		case 3 :
-			printf("west");
+			strncpy(direction, "west", 4);
 			break;
 	}
-	printf("\n");
-}
-
-void get_direction16(float ang) {
-	if (ang == 360) {
-		ang = ang - 360;
-	}
-	int bits = ang / 22.5;
-#ifdef DEBUG
-	printf("get_direction16 ang: %f, bits: %i\n", ang, bits);
-#endif
-	if ((0 <= bits && bits <= 2) || (14 <= bits && bits <= 15)) {
-		printf("north");
-		if (bits == 1) {
-			printf("-north");
-		}
-		if (1 <= bits && bits <= 3) {
-			printf("east");
-		}
-	} else if (3 <= bits && bits <= 4) {
-		printf("east");
-	} else if (6 <= bits && bits <= 10) {
-		printf("south");
-	} else if (11 <= bits && bits <= 13) {
-		printf("west");
-	} else {
-		printf("something went wrong");
-	}
-	printf("\n");
-}
-
-void get_direction_mask(float ang) {
-	if (ang == 360) {
-		ang = ang - 360;
-	}
-	int bits = ang / 22.5;
-#ifdef DEBUG
-	printf("mask ang: %f, bits: %i\n", ang, bits);
-#endif
-
+	direction[5] = '\0';
 }
 
 int main(int argc, char *argv[]) {
@@ -117,18 +79,11 @@ int main(int argc, char *argv[]) {
 		printf("closest_idx: %i\n", closest_idx);
 		printf("angle: %f resistance: %f\n", angles[closest_idx][0], angles[closest_idx][1]);
 #endif
-		printf("angle: %f\n", get_angle(R2, VIN, vout));
-	} else {
-		get_direction16(0.0);
-		get_direction16(360.0);
-		get_direction16(22.5);
-		get_direction16(45);
-		get_direction16(67.5);
-		/*
-		get_direction16(90.0);
-		get_direction16(180.0);
-		get_direction16(270.0);
-		*/
+		float angle = get_angle(R2, VIN, vout);
+		printf("angle: %f\n", angle);
+		char direction[5];
+		get_direction4(angle, direction);
+		printf("direction: %s\n", direction);
 	}
 	return 0;
 }
