@@ -19,3 +19,4 @@ weatherstation.elf
 weatherstation.elf.map
 weatherstation.hex
 weatherstation.uf2
+*.local

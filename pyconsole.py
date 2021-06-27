@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 import json
+import os
 import serial
 import time
 import paho.mqtt.client as mqtt
 from statistics import mean, mode, StatisticsError
 
 client = mqtt.Client()
-client.connect("192.168.2.104", 1883, 60)
+mqtt_host = os.getenv('MQTT_HOST', 'localhost')
+client.connect(mqtt_host, 1883, 60)
 
 publish_interval = 30  # seconds
 publish_every = True  # emit every sample as well as mean
