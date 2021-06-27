@@ -14,7 +14,13 @@ Ultimately the project has made some even greater deviations, to the point of it
 
 ## Hardware
 
-### Argent Weather Sensor Assembly
+### Argent Wind / Rain Sensor Assembly
+
+This package includes an anemometer and wind vane for measuring wind speed and direction, a tipping bucket type rain gauge with 0.011 inch resolution, a metal mast, cables, and mounting hardware.
+
+(Description from Argent website)
+
+https://www.argentdata.com/catalog/product\_info.php?products\_id=145
 
 ### Raspberry Pi Pico
 
@@ -26,7 +32,7 @@ I chose the Pico over the ESP32 due to my stubborn insistence on using interrupt
 
 The Raspberry Pi Original interfaces with a couple of sensors that are not yet migrated to the Pico:
   * DS18B20 One-Wire Temperature Probe (Ground Temperature)
-  * Rain Gauge (part of Argent Weather Sensor Assembly)
+  * Rain Gauge (part of Argent Sensor Assembly)
 
 There are no major hurdles to migrating those sensors, though I may move things from a breadboard to a protoboard before adding more sensors.
 
