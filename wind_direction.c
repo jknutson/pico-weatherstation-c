@@ -49,6 +49,65 @@ float get_angle(float r2, float vin, float vout) {
 	return angles[idx][0];
 }
 
+// TODO: save chars to a char[], not printf
+void get_direction4(float ang) {
+	switch((int)ang/90) {
+		case 0 :
+		case 4 :
+			printf("north");
+			break;
+		case 1 :
+			printf("east");
+			break;
+		case 2 :
+			printf("south");
+			break;
+		case 3 :
+			printf("west");
+			break;
+	}
+	printf("\n");
+}
+
+void get_direction16(float ang) {
+	if (ang == 360) {
+		ang = ang - 360;
+	}
+	int bits = ang / 22.5;
+#ifdef DEBUG
+	printf("get_direction16 ang: %f, bits: %i\n", ang, bits);
+#endif
+	if ((0 <= bits && bits <= 2) || (14 <= bits && bits <= 15)) {
+		printf("north");
+		if (bits == 1) {
+			printf("-north");
+		}
+		if (1 <= bits && bits <= 3) {
+			printf("east");
+		}
+	} else if (3 <= bits && bits <= 4) {
+		printf("east");
+	} else if (6 <= bits && bits <= 10) {
+		printf("south");
+	} else if (11 <= bits && bits <= 13) {
+		printf("west");
+	} else {
+		printf("something went wrong");
+	}
+	printf("\n");
+}
+
+void get_direction_mask(float ang) {
+	if (ang == 360) {
+		ang = ang - 360;
+	}
+	int bits = ang / 22.5;
+#ifdef DEBUG
+	printf("mask ang: %f, bits: %i\n", ang, bits);
+#endif
+
+}
+
 int main(int argc, char *argv[]) {
 	if (argc == 2) {
 		float vout = atof(argv[1]);
@@ -60,8 +119,16 @@ int main(int argc, char *argv[]) {
 #endif
 		printf("angle: %f\n", get_angle(R2, VIN, vout));
 	} else {
-		printf("1 argument required (r1)\n");
-		return 1;
+		get_direction16(0.0);
+		get_direction16(360.0);
+		get_direction16(22.5);
+		get_direction16(45);
+		get_direction16(67.5);
+		/*
+		get_direction16(90.0);
+		get_direction16(180.0);
+		get_direction16(270.0);
+		*/
 	}
 	return 0;
 }
