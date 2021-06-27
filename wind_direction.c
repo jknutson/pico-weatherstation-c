@@ -70,6 +70,45 @@ void get_direction4(float ang, char *direction) {
 	direction[5] = '\0';
 }
 
+float deg2rad(float deg) {
+	return deg * (M_PI / 180.0);
+}
+float rad2deg(float rad) {
+	return rad * (180.0 / M_PI);
+}
+
+float get_avg_angle(float arr_angles[], int num_arr_angles) {
+	float sin_sum = 0.0;
+	float cos_sum = 0.0;
+
+	for (int i = 0; i < num_arr_angles; i++) {
+		if (arr_angles[i] == 0.0) {
+			arr_angles[i] = 360.0;
+		}
+		float r = deg2rad(arr_angles[i]);
+		sin_sum = sin_sum + sin(r);
+		cos_sum = cos_sum + cos(r);
+	}
+	float sin_avg = sin_sum / num_arr_angles;
+	float cos_avg = cos_sum / num_arr_angles;
+	float arc = rad2deg(atan(sin_avg / cos_avg));
+	float avg_angle = 0.0;
+	if (sin_sum > 0 && cos_sum > 0) {
+		avg_angle = arc;
+	} else if (cos_sum < 0) {
+		avg_angle = arc + 180;
+	} else if (sin_sum < 0 && cos_sum > 0) {
+		avg_angle = arc + 360;
+	} else {
+		// TODO: better error handling here
+		printf("something went wrong getting avg angle\n");
+	}
+	if (avg_angle == 360) {
+		avg_angle = 0;
+	}
+	return avg_angle;
+}
+
 int main(int argc, char *argv[]) {
 	if (argc == 2) {
 		float vout = atof(argv[1]);
@@ -84,6 +123,13 @@ int main(int argc, char *argv[]) {
 		char direction[5];
 		get_direction4(angle, direction);
 		printf("direction: %s\n", direction);
+		float angles[4];
+		angles[0] = 90.0;
+		angles[1] = 90.0;
+		angles[2] = 90.0;
+		angles[3] = 90.0;
+		float avg_angle = get_avg_angle(angles, 4);
+		printf("avg_angle: %f\n", avg_angle);
 	}
 	return 0;
 }
