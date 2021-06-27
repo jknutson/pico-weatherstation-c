@@ -18,6 +18,7 @@ add_compile_options(-Wall
 
 add_executable(weatherstation
         weatherstation.c
+	wind_direction.c
         )
 
 # Pull in our pico_stdlib which pulls in commonly used features

@@ -4,8 +4,10 @@
 #include <string.h>
 #include "wind_direction.h"
 
+/*
 const float VIN  = 3.3;   // volts
 const float R2   = 4700;  // ohm
+*/
 const float angles[16][2] = {  // TODO: move to separate file
 	{0,  33000},
 	{22.5, 6570},
@@ -108,7 +110,7 @@ float get_avg_angle(float arr_angles[], int num_arr_angles) {
 	}
 	return avg_angle;
 }
-
+/*
 int main(int argc, char *argv[]) {
 	if (argc == 2) {
 		float vout = atof(argv[1]);
@@ -133,3 +135,4 @@ int main(int argc, char *argv[]) {
 	}
 	return 0;
 }
+*/
