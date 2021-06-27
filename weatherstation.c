@@ -1,0 +1,243 @@
+/**
+ * Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ **/
+
+#include <stdio.h>
+#include <math.h>
+#include "pico/stdlib.h"
+#include "hardware/adc.h"
+#include "hardware/gpio.h"
+#include "hardware/irq.h"
+#include "weatherstation.h"
+
+#ifdef PICO_DEFAULT_LED_PIN
+#define LED_PIN PICO_DEFAULT_LED_PIN
+#endif
+
+const uint DHT_PIN = 15;
+const uint MAX_TIMINGS = 85;
+const uint CM_IN_KM = 100000.0;
+const uint SECS_IN_HOUR = 3600;
+const float ANEMOMETER_RADIUS = 9;  // cm
+const uint ANEMOMETER_PIN = 2;
+const uint ANEMOMETER_DEBOUNCE_MS = 20;
+// 12-bit conversion, assume max value == ADC_VREF == 3.3 V
+const float ADC_CONVERSION_FACTOR = 3.3f / (1 << 12);
+const int SLEEP_INTERVAL_MS = 5000; // ms
+
+#define DEBOUNCE_MS 20
+static bool is_debounceing = false;
+static int gpio_cb_cnt = 0;
+
+typedef struct {
+	bool crc_match;
+	float humidity;
+	float temp_celsius;
+} dht_reading;
+
+void read_from_dht(dht_reading *result);
+
+int64_t debounce_alarm_callback(alarm_id_t id, void *user_data) {
+	is_debounceing = false;
+	return 0;
+}
+
+bool debounce() {
+	if (!is_debounceing) {
+		add_alarm_in_ms(DEBOUNCE_MS, &debounce_alarm_callback, NULL, false);
+		is_debounceing = true;
+		return false;
+	}
+	return true;
+}
+
+// void gpio_cb(uint gpio, uint32_t events) {
+void gpio_cb() {
+	gpio_acknowledge_irq(2, IO_IRQ_BANK0);
+	if (debounce()) return;
+	gpio_cb_cnt++;
+}
+
+double nround (double n, uint c)
+{
+	double marge = pow(10, c);
+	double up = n * marge;
+	double ret = round(up) / marge;
+	return ret;
+}
+
+double wind_direction_deg(float voltage) {
+	double vround = nround(voltage, 1);
+	if (vround == 2.9) {
+		return 0.0;
+	} else if (vround == 2.0 || vround == 2.1) {
+		return 45.0; // TODO: more precision here
+	} else if (vround == 0.6) {
+		return 90.0;
+	} else if (vround == 0.4 || vround == 1.1 || vround == 1.0) {
+		return 135.0; // TODO: more precision here
+	} else if (vround == 1.5 || vround == 1.6) {
+		return 180.0;
+	} else if (vround >= 2.5 && vround <= 2.7) {
+		return 225.0;
+	} else if (vround == 3.2) {
+		return 270.0;
+	} else if (vround == 2.9) {
+		return 292.5;
+	} else if (vround == 3.1) {
+		return 315.0;
+	} else if (vround == 2.8) {
+		return 337.5;
+	} else {
+		return 999.9;
+	}
+}
+
+float calc_wind_speed_kmh(int rotations) {
+	// speed = ( (signals/2) * (2 * pi * radius) ) / time
+	float speed_km_s = ((rotations / 2) * (2 * 3.1415 * ANEMOMETER_RADIUS)) / CM_IN_KM;
+	float speed_kmh = speed_km_s * SECS_IN_HOUR;
+	return speed_kmh;
+}
+
+float kmh_to_mph(float kmh) {
+	return (kmh * 0.621371);
+}
+
+void reset_speed_counter(int* count) {
+#ifdef DEBUG
+	printf("resetting counter %i -> 0\n", *count);
+#endif
+	*count = 0;
+}
+
+
+int main() {
+	stdio_init_all();
+	gpio_init(DHT_PIN);
+#ifdef LED_PIN
+	gpio_init(LED_PIN);
+	gpio_set_dir(LED_PIN, GPIO_OUT);
+#endif
+	gpio_set_pulls(ANEMOMETER_PIN, false, true);  // pull down
+	irq_set_exclusive_handler(IO_IRQ_BANK0, gpio_cb);
+	gpio_set_irq_enabled(ANEMOMETER_PIN, GPIO_IRQ_EDGE_RISE, true);
+	irq_set_enabled(IO_IRQ_BANK0, true);
+
+	// gpio_set_irq_enabled_with_callback(ANEMOMETER_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_cb);
+
+	adc_init();
+	adc_gpio_init(26);
+	// adc_set_temp_sensor_enabled(true);
+	// adc_set_round_robin(0x11); // 0x11 = 10001  // ADC0 & ADC4
+	adc_select_input(0);
+
+	for (;;) {
+		// read ADC
+		uint8_t sel_input = adc_get_selected_input();
+		uint16_t result = adc_read();
+		float result_v = result * ADC_CONVERSION_FACTOR;
+		// read DHT
+		dht_reading reading;
+		reading.crc_match = false;
+		read_from_dht(&reading);
+		float fahrenheit = (reading.temp_celsius * 9 / 5) + 32;
+		if (reading.crc_match) {
+			printf("{\"humidity\": %.1f, \"temperature_f\": %.1f}\n", reading.humidity, fahrenheit);
+		}
+		if (sel_input == 0) {
+			printf("{\"wind_direction_deg\": %f, \"raw\": \"0x%03x\", \"v\": %f, \"v_rounded\": %f}\n", wind_direction_deg(result_v), result, result_v, nround(result_v, 1));
+		}
+		// calculate wind speed
+		float wind_speed_kmh = calc_wind_speed_kmh(gpio_cb_cnt);
+		float wind_speed_mph = kmh_to_mph(wind_speed_kmh);
+		printf("{\"wind_speed\": %.2f, \"wind_speed_kmh\": %.2f, \"gpio_cb_cnt\": %i}\n", wind_speed_mph, wind_speed_kmh, gpio_cb_cnt);
+		reset_speed_counter(&gpio_cb_cnt);
+		sleep_ms(SLEEP_INTERVAL_MS);
+	}
+}
+
+void read_from_dht(dht_reading *result) {
+	int data[5] = {0, 0, 0, 0, 0};
+	uint last = 1;
+	uint j = 0;
+
+	gpio_set_dir(DHT_PIN, GPIO_OUT);
+	gpio_put(DHT_PIN, 0);
+	sleep_ms(18);
+	gpio_put(DHT_PIN, 1);
+	sleep_us(40);
+	gpio_set_dir(DHT_PIN, GPIO_IN);
+
+#ifdef LED_PIN
+	gpio_put(LED_PIN, 1);
+#endif
+	for (uint i = 0; i < MAX_TIMINGS; i++) {
+		uint count = 0;
+		while (gpio_get(DHT_PIN) == last) {
+			count++;
+			sleep_us(1);
+			if (count == 255) break;
+		}
+		last = gpio_get(DHT_PIN);
+		if (count == 255) break;
+
+		if ((i >= 4) && (i % 2 == 0)) {
+			data[j / 8] <<= 1;
+			if (count > 46) data[j / 8] |= 1;
+			j++;
+		}
+	}
+#ifdef LED_PIN
+	gpio_put(LED_PIN, 0);
+#endif
+	if ((j >= 40) && (data[4] == ((data[0] + data[1] + data[2] + data[3]) & 0xFF))) {
+		result->crc_match = true;
+		result->humidity = (float) ((data[0] << 8) + data[1]) / 10;
+		if (result->humidity > 100) {
+			result->humidity = data[0];
+		}
+		result->temp_celsius = (float) (((data[2] & 0x7F) << 8) + data[3]) / 10;
+		if (result->temp_celsius > 125) {
+			result->temp_celsius = data[2];
+		}
+		if (data[2] & 0x80) {
+			result->temp_celsius = -result->temp_celsius;
+		}
+	} else {
+		result->crc_match = false;
+#ifdef DEBUG
+		printf("CRC mismatch - crc:%i actual:%i\n", data[4], ((data[0] + data[1] + data[2] + data[3]) & 0xFF));
+#endif
+	}
+}
+
+static const char *gpio_irq_str[] = {
+        "LEVEL_LOW",  // 0x1
+        "LEVEL_HIGH", // 0x2
+        "EDGE_FALL",  // 0x4
+        "EDGE_RISE"   // 0x8
+};
+
+void gpio_event_string(char *buf, uint32_t events) {
+    for (uint i = 0; i < 4; i++) {
+        uint mask = (1 << i);
+        if (events & mask) {
+            // Copy this event string into the user string
+            const char *event_str = gpio_irq_str[i];
+            while (*event_str != '\0') {
+                *buf++ = *event_str++;
+            }
+            events &= ~mask;
+
+            // If more events add ", "
+            if (events) {
+                *buf++ = ',';
+                *buf++ = ' ';
+            }
+        }
+    }
+    *buf++ = '\0';
+}
