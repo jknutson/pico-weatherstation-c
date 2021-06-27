@@ -11,6 +11,7 @@
 #include "hardware/gpio.h"
 #include "hardware/irq.h"
 #include "weatherstation.h"
+#include "wind_direction.h"
 
 #ifdef PICO_DEFAULT_LED_PIN
 #define LED_PIN PICO_DEFAULT_LED_PIN
