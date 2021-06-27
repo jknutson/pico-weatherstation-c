@@ -26,6 +26,8 @@ const uint ANEMOMETER_DEBOUNCE_MS = 20;
 // 12-bit conversion, assume max value == ADC_VREF == 3.3 V
 const float ADC_CONVERSION_FACTOR = 3.3f / (1 << 12);
 const int SLEEP_INTERVAL_MS = 5000; // ms
+const float R2 = 4700.0;
+const float VIN = 3.3;
 
 #define DEBOUNCE_MS 20
 static bool is_debounceing = false;
@@ -149,6 +151,7 @@ int main() {
 		}
 		if (sel_input == 0) {
 			printf("{\"wind_direction_deg\": %f, \"raw\": \"0x%03x\", \"v\": %f, \"v_rounded\": %f}\n", wind_direction_deg(result_v), result, result_v, nround(result_v, 1));
+			printf("{\"wind_angle\": %f}\n", get_angle(R2, VIN, result_v));
 		}
 		// calculate wind speed
 		float wind_speed_kmh = calc_wind_speed_kmh(gpio_cb_cnt);
