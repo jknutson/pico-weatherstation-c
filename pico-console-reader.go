@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"regexp"
 	"syscall"
+	"strconv"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/tarm/serial"
@@ -25,7 +26,7 @@ var (
 	serialBaudDefault             int = 115200
 	mqBroker, mqTopic, mqClientID string
 	mqBrokerDefault               string = "tcp://localhost:1883"
-	mqTopicDefault                string = "pico-weatherstation"
+	mqTopicDefault                string = "iot/pico-weatherstation"
 	mqClientIDDefault             string = "pico-weatherstation"
 	verbose, version              bool
 )
@@ -110,15 +111,15 @@ func main() {
 	}
 
 	log.Printf("reading from %s\n", serialPort)
+	reader := bufio.NewReader(s)
 	for {
-		reader := bufio.NewReader(s)
 		line, err := reader.ReadString('\n')
 		if err != nil && err != io.EOF {
 			panic(err)
 		}
 		if line != "" {
 			if verbose {
-				log.Printf("line: %s", line)
+				fmt.Println(strconv.Quote(line))
 			}
 			dhtMatched, err := regexp.MatchString(`.*\"humidity\"\:.*`, line)
 			if err != nil {
@@ -138,15 +139,19 @@ func main() {
 					log.Printf("DHT: %s", line)
 				}
 				dhtMatches := dhtRe.FindAllStringSubmatch(line, -1)
-				token := c.Publish(fmt.Sprintf("%s/dht/humidity", mqTopic), 0, false, dhtMatches[0][1])
+				token := c.Publish(fmt.Sprintf("%s/humidity", mqTopic), 0, false, dhtMatches[0][1])
 				token.Wait()
 				if token.Error() != nil {
 					log.Printf("mq publish error: %s\n", token.Error())
+				} else {
+					log.Printf("mq published: %s %s",fmt.Sprintf("%s/humidity", mqTopic), dhtMatches[0][1])
 				}
-				token = c.Publish(fmt.Sprintf("%s/dht/temperature", mqTopic), 0, false, dhtMatches[0][2])
+				token = c.Publish(fmt.Sprintf("%s/temperature_f", mqTopic), 0, false, dhtMatches[0][2])
 				token.Wait()
 				if token.Error() != nil {
 					log.Printf("mq publish error: %s\n", token.Error())
+				} else {
+					log.Printf("mq published: %s %s",fmt.Sprintf("%s/temperature_f", mqTopic), dhtMatches[0][2])
 				}
 			}
 			if windAngleMatched {
@@ -154,10 +159,12 @@ func main() {
 					log.Printf("Wind Angle: %s", line)
 				}
 				windAngleMatches := windAngleRe.FindAllStringSubmatch(line, -1)
-				token := c.Publish(fmt.Sprintf("%s/dht/wind_angle", mqTopic), 0, false, windAngleMatches[0][1])
+				token := c.Publish(fmt.Sprintf("%s/wind_angle", mqTopic), 0, false, windAngleMatches[0][1])
 				token.Wait()
 				if token.Error() != nil {
 					log.Printf("mq publish error: %s\n", token.Error())
+				} else {
+					log.Printf("mq published: %s %s",fmt.Sprintf("%s/wind_angle", mqTopic), windAngleMatches[0][1])
 				}
 			}
 			if windSpeedMatched {
@@ -165,15 +172,19 @@ func main() {
 					log.Printf("Wind Speed: %s", line)
 				}
 				windSpeedMatches := windSpeedRe.FindAllStringSubmatch(line, -1)
-				token := c.Publish(fmt.Sprintf("%s/dht/wind_speed", mqTopic), 0, false, windSpeedMatches[0][1])
+				token := c.Publish(fmt.Sprintf("%s/wind_speed", mqTopic), 0, false, windSpeedMatches[0][1])
 				token.Wait()
 				if token.Error() != nil {
 					log.Printf("mq publish error: %s\n", token.Error())
+				} else {
+					log.Printf("mq published: %s %s",fmt.Sprintf("%s/wind_speed", mqTopic), windSpeedMatches[0][1])
 				}
 			}
 
-			if !(dhtMatched || windAngleMatched || windSpeedMatched) {
-				log.Printf("other: %s", line)
+			if verbose {
+				if !(dhtMatched || windAngleMatched || windSpeedMatched) {
+					log.Printf("other: %s", line)
+				}
 			}
 
 			dhtMatched = false
