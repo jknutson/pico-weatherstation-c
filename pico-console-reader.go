@@ -117,7 +117,9 @@ func main() {
 			panic(err)
 		}
 		if line != "" {
-			log.Printf("line: %s", line)
+			if verbose {
+				log.Printf("line: %s", line)
+			}
 			dhtMatched, err := regexp.MatchString(`.*\"humidity\"\:.*`, line)
 			if err != nil {
 				panic(err)
@@ -132,7 +134,9 @@ func main() {
 			}
 
 			if dhtMatched {
-				log.Printf("DHT: %s", line)
+				if verbose {
+					log.Printf("DHT: %s", line)
+				}
 				dhtMatches := dhtRe.FindAllStringSubmatch(line, -1)
 				token := c.Publish(fmt.Sprintf("%s/dht/humidity", mqTopic), 0, false, dhtMatches[0][1])
 				token.Wait()
@@ -146,7 +150,9 @@ func main() {
 				}
 			}
 			if windAngleMatched {
-				log.Printf("Wind Angle: %s", line)
+				if verbose {
+					log.Printf("Wind Angle: %s", line)
+				}
 				windAngleMatches := windAngleRe.FindAllStringSubmatch(line, -1)
 				token := c.Publish(fmt.Sprintf("%s/dht/wind_angle", mqTopic), 0, false, windAngleMatches[0][1])
 				token.Wait()
@@ -155,7 +161,9 @@ func main() {
 				}
 			}
 			if windSpeedMatched {
-				log.Printf("Wind Speed: %s", line)
+				if verbose {
+					log.Printf("Wind Speed: %s", line)
+				}
 				windSpeedMatches := windSpeedRe.FindAllStringSubmatch(line, -1)
 				token := c.Publish(fmt.Sprintf("%s/dht/wind_speed", mqTopic), 0, false, windSpeedMatches[0][1])
 				token.Wait()
