@@ -26,7 +26,8 @@ const uint ANEMOMETER_PIN = 2;
 const uint ANEMOMETER_DEBOUNCE_MS = 20;
 // 12-bit conversion, assume max value == ADC_VREF == 3.3 V
 const float ADC_CONVERSION_FACTOR = 3.3f / (1 << 12);
-const int SLEEP_INTERVAL_MS = 5000; // ms
+const int SLEEP_INTERVAL_MS = 1000; // ms
+const int ROLLUP_INTERVAL_MS = 5000; // ms
 const float R2 = 4700.0;
 const float VIN = 3.3;
 
@@ -121,7 +122,7 @@ int main() {
 		float wind_speed_mph = kmh_to_mph(wind_speed_kmh);
 		printf("{\"wind_speed\": %.2f, \"wind_speed_kmh\": %.2f, \"gpio_cb_cnt\": %i}\n", wind_speed_mph, wind_speed_kmh, gpio_cb_cnt);
 		reset_speed_counter(&gpio_cb_cnt);
-		sleep_ms(SLEEP_INTERVAL_MS);
+		sleep_ms(ROLLUP_INTERVAL_MS);
 	}
 }
 
