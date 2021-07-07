@@ -5,16 +5,20 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"encoding/json"
 	"log"
 	"os"
 	"os/signal"
 	"regexp"
 	"syscall"
 	"strconv"
+	"time"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/tarm/serial"
 )
+
+const rollupInterval = 15000  // milliseconds
 
 // TODO: default serial port based on OS
 var (
@@ -49,6 +53,13 @@ type WindAngleMessage struct {
 type WindSpeedMessage struct {
 	WindSpeed float64 `json:"wind_speed"`
 }
+type SensorData struct {
+	HumiditySamples    []float64
+	TemperatureSamples []float64
+	WindSpeedSamples   []float64
+	WindAngleSamples   []float64
+}
+
 
 func usage() {
 	println(`Usage: pico-weather-reader [options]
@@ -98,7 +109,7 @@ func main() {
 	}
 
 	//regexp parsers
-	dhtRe := regexp.MustCompile(`.*\"humidity\"\:\s*(\d+\.\d+)\,\s*\"temperature_f\"\:\s*(\d+\.\d+).*`)
+	// dhtRe := regexp.MustCompile(`.*\"humidity\"\:\s*(\d+\.\d+)\,\s*\"temperature_f\"\:\s*(\d+\.\d+).*`)
 	windAngleRe := regexp.MustCompile(`.*\"wind_angle\"\:\s*(\d+\.\d+).*`)
 	windSpeedRe := regexp.MustCompile(`.*\"wind_speed\"\:\s*(\d+\.\d+).*`)
 
@@ -112,6 +123,7 @@ func main() {
 
 	log.Printf("reading from %s\n", serialPort)
 	reader := bufio.NewReader(s)
+	start := time.Now()
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil && err != io.EOF {
@@ -121,38 +133,39 @@ func main() {
 			if verbose {
 				fmt.Println(strconv.Quote(line))
 			}
+			// TODO: should we just unmarshal and catch error?
 			dhtMatched, err := regexp.MatchString(`.*\"humidity\"\:.*`, line)
 			if err != nil {
 				panic(err)
 			}
-			windAngleMatched, err := regexp.MatchString(`.*\"wind_angle\".*`, line)
-			if err != nil {
-				panic(err)
-			}
-			windSpeedMatched, err := regexp.MatchString(`.*\"wind_speed\".*`, line)
-			if err != nil {
-				panic(err)
-			}
-
 			if dhtMatched {
 				if verbose {
 					log.Printf("DHT: %s", line)
 				}
-				dhtMatches := dhtRe.FindAllStringSubmatch(line, -1)
-				token := c.Publish(fmt.Sprintf("%s/humidity", mqTopic), 0, false, dhtMatches[0][1])
+				var dhtSample DHTMessage
+				err := json.Unmarshal([]byte(line), &dhtSample)
+				if err != nil {
+					log.Printf("error unmarshaling line: %s err: %s\n", line ,err)
+				}
+
+				token := c.Publish(fmt.Sprintf("%s/humidity", mqTopic), 0, false, fmt.Sprintf("%.2f", dhtSample.Humidity))
 				token.Wait()
 				if token.Error() != nil {
 					log.Printf("mq publish error: %s\n", token.Error())
 				} else {
-					log.Printf("mq published: %s %s",fmt.Sprintf("%s/humidity", mqTopic), dhtMatches[0][1])
+					log.Printf("mq published: %s %.2f",fmt.Sprintf("%s/humidity", mqTopic), dhtSample.Humidity)
 				}
-				token = c.Publish(fmt.Sprintf("%s/temperature_f", mqTopic), 0, false, dhtMatches[0][2])
+				token = c.Publish(fmt.Sprintf("%s/temperature_f", mqTopic), 0, false, fmt.Sprintf("%.2f", dhtSample.TemperatureF))
 				token.Wait()
 				if token.Error() != nil {
 					log.Printf("mq publish error: %s\n", token.Error())
 				} else {
-					log.Printf("mq published: %s %s",fmt.Sprintf("%s/temperature_f", mqTopic), dhtMatches[0][2])
+					log.Printf("mq published: %s %.2f",fmt.Sprintf("%s/temperature_f", mqTopic), dhtSample.TemperatureF)
 				}
+			}
+			windAngleMatched, err := regexp.MatchString(`.*\"wind_angle\".*`, line)
+			if err != nil {
+				panic(err)
 			}
 			if windAngleMatched {
 				if verbose {
@@ -166,6 +179,11 @@ func main() {
 				} else {
 					log.Printf("mq published: %s %s",fmt.Sprintf("%s/wind_angle", mqTopic), windAngleMatches[0][1])
 				}
+			}
+
+			windSpeedMatched, err := regexp.MatchString(`.*\"wind_speed\".*`, line)
+			if err != nil {
+				panic(err)
 			}
 			if windSpeedMatched {
 				if verbose {
@@ -190,6 +208,12 @@ func main() {
 			dhtMatched = false
 			windAngleMatched = false
 			windSpeedMatched = false
+		}
+
+		// rollup
+		if (time.Since(start).Milliseconds() > rollupInterval) {
+			log.Printf("rollup time\n")
+			start = time.Now()
 		}
 	}
 }
