@@ -88,6 +88,7 @@ void get_direction4(float ang, char *direction) {
 			strncpy(direction, "west", 4);
 			break;
 	}
+	// TODO: does it matter that we don't "fill" `direction` for east/west?
 	direction[5] = '\0';
 }
 
@@ -129,29 +130,3 @@ float get_avg_angle(float arr_angles[], int num_arr_angles) {
 	}
 	return avg_angle;
 }
-/*
-int main(int argc, char *argv[]) {
-	if (argc == 2) {
-		float vout = atof(argv[1]);
-#ifdef DEBUG
-		printf("r1: %f\n", r1(R2, VIN, vout));
-		int closest_idx = get_closest_idx(r1(R2, VIN, vout));
-		printf("closest_idx: %i\n", closest_idx);
-		printf("angle: %f resistance: %f\n", angles[closest_idx][0], angles[closest_idx][1]);
-#endif
-		float angle = get_angle(R2, VIN, vout);
-		printf("angle: %f\n", angle);
-		char direction[5];
-		get_direction4(angle, direction);
-		printf("direction: %s\n", direction);
-		float angles[4];
-		angles[0] = 90.0;
-		angles[1] = 90.0;
-		angles[2] = 90.0;
-		angles[3] = 90.0;
-		float avg_angle = get_avg_angle(angles, 4);
-		printf("avg_angle: %f\n", avg_angle);
-	}
-	return 0;
-}
-*/

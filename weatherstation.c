@@ -56,46 +56,11 @@ bool debounce() {
 	return true;
 }
 
-// void gpio_cb(uint gpio, uint32_t events) {
+// TODO: support multiple gpio pins
 void gpio_cb() {
 	gpio_acknowledge_irq(2, IO_IRQ_BANK0);
 	if (debounce()) return;
 	gpio_cb_cnt++;
-}
-
-double nround (double n, uint c)
-{
-	double marge = pow(10, c);
-	double up = n * marge;
-	double ret = round(up) / marge;
-	return ret;
-}
-
-double wind_direction_deg(float voltage) {
-	double vround = nround(voltage, 1);
-	if (vround == 2.9) {
-		return 0.0;
-	} else if (vround == 2.0 || vround == 2.1) {
-		return 45.0; // TODO: more precision here
-	} else if (vround == 0.6) {
-		return 90.0;
-	} else if (vround == 0.4 || vround == 1.1 || vround == 1.0) {
-		return 135.0; // TODO: more precision here
-	} else if (vround == 1.5 || vround == 1.6) {
-		return 180.0;
-	} else if (vround >= 2.5 && vround <= 2.7) {
-		return 225.0;
-	} else if (vround == 3.2) {
-		return 270.0;
-	} else if (vround == 2.9) {
-		return 292.5;
-	} else if (vround == 3.1) {
-		return 315.0;
-	} else if (vround == 2.8) {
-		return 337.5;
-	} else {
-		return 999.9;
-	}
 }
 
 float calc_wind_speed_kmh(int rotations) {
@@ -116,7 +81,6 @@ void reset_speed_counter(int* count) {
 	*count = 0;
 }
 
-
 int main() {
 	stdio_init_all();
 	gpio_init(DHT_PIN);
@@ -133,8 +97,6 @@ int main() {
 
 	adc_init();
 	adc_gpio_init(26);
-	// adc_set_temp_sensor_enabled(true);
-	// adc_set_round_robin(0x11); // 0x11 = 10001  // ADC0 & ADC4
 	adc_select_input(0);
 
 	for (;;) {
@@ -150,8 +112,8 @@ int main() {
 		if (reading.crc_match) {
 			printf("{\"humidity\": %.1f, \"temperature_f\": %.1f}\n", reading.humidity, fahrenheit);
 		}
+		// calculate wind angle
 		if (sel_input == 0) {
-			printf("{\"wind_direction_deg\": %f, \"raw\": \"0x%03x\", \"v\": %f, \"v_rounded\": %f}\n", wind_direction_deg(result_v), result, result_v, nround(result_v, 1));
 			printf("{\"wind_angle\": %f}\n", get_angle(R2, VIN, result_v));
 		}
 		// calculate wind speed
