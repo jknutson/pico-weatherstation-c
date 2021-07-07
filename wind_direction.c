@@ -4,10 +4,6 @@
 #include <string.h>
 #include "wind_direction.h"
 
-/*
-const float VIN  = 3.3;   // volts
-const float R2   = 4700;  // ohm
-*/
 const char directions[16][16] = {
   "north",
   "north-northeast",
@@ -45,6 +41,14 @@ const float angles[16][2] = {  // TODO: move to separate file
 	{315, 64900},
 	{337.5, 21880}
 };
+
+float mean(float values[], size_t valuesCount) {
+  float sum = 0.0;
+  for(int i = 0; i < valuesCount; i++) {
+    sum += values[i];
+  }
+  return sum/(float)valuesCount;
+}
 
 int get_closest_idx(float r1) {
 	int angles_len = sizeof(angles) / sizeof(angles[0]);
