@@ -8,6 +8,25 @@
 const float VIN  = 3.3;   // volts
 const float R2   = 4700;  // ohm
 */
+const char directions[16][16] = {
+  "north",
+  "north-northeast",
+  "northeast",
+  "east-northeast",
+  "east",
+  "east-southeast",
+  "southeast",
+  "south-southeast",
+  "south",
+  "south-southwest",
+  "southwest",
+  "west-southwest",
+  "west",
+  "west-northwest",
+  "northwest",
+  "north-northwest"
+};
+
 const float angles[16][2] = {  // TODO: move to separate file
 	{0,  33000},
 	{22.5, 6570},
