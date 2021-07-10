@@ -17,12 +17,12 @@
 #define LED_PIN PICO_DEFAULT_LED_PIN
 #endif
 
-#define getName(var)  #var
-
 const uint DHT_PIN = 15;
 const uint MAX_TIMINGS = 85;
 const uint CM_IN_KM = 100000.0;
 const uint SECS_IN_HOUR = 3600;
+const float MM_TO_IN = 0.0393701;
+const float RAIN_TIP_MM = 0.2794;  // 1 tip = 0.2794mm of rain
 const float ANEMOMETER_RADIUS = 9;  // cm
 const uint ANEMOMETER_PIN = 2;
 const uint RAIN_PIN = 3;
@@ -53,9 +53,9 @@ void gpio_cb(uint gpio, uint32_t events) {
 	}
 }
 
-// TODO: implement
-float calc_rainfall(int tips) {
-	return 0.0f;
+float calc_rainfall_in(int tips) {
+	float rainfall_mm = tips * RAIN_TIP_MM;
+	return rainfall_mm * MM_TO_IN;
 }
 
 // TODO: move wind stuff to wind_direction.c
@@ -84,6 +84,7 @@ int main() {
 #endif
 
 	gpio_set_pulls(ANEMOMETER_PIN, false, true);  // pull down
+	gpio_set_pulls(RAIN_PIN, false, true);  // pull down
 	gpio_set_irq_enabled_with_callback(ANEMOMETER_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_cb);
 
 	adc_init();
@@ -116,7 +117,7 @@ int main() {
 #endif
 		reset_counter(&gpio_wind_cb_cnt);
 		// calculate rainfall
-		float rainfall_in = calc_rainfall(gpio_rain_cb_cnt);
+		float rainfall_in = calc_rainfall_in(gpio_rain_cb_cnt);
 		printf("{\"rainfall_in\": %.2f, \"gpio_rain_cb_cnt\": %i}\n", rainfall_in, gpio_rain_cb_cnt);
 		printf("resetting rain counter %i -> 0\n", gpio_rain_cb_cnt);
 		reset_counter(&gpio_rain_cb_cnt);
