@@ -26,7 +26,6 @@ const float RAIN_TIP_MM = 0.2794;  // 1 tip = 0.2794mm of rain
 const float ANEMOMETER_RADIUS = 9;  // cm
 const uint ANEMOMETER_PIN = 2;
 const uint RAIN_PIN = 3;
-const uint ANEMOMETER_DEBOUNCE_MS = 20;
 // 12-bit conversion, assume max value == ADC_VREF == 3.3 V
 const float ADC_CONVERSION_FACTOR = 3.3f / (1 << 12);
 const int SLEEP_INTERVAL_MS = 5000; // ms
@@ -36,22 +35,58 @@ const float VIN = 3.3;
 static int gpio_wind_cb_cnt = 0;
 static int gpio_rain_cb_cnt = 0;
 
-typedef struct {
-	bool crc_match;
-	float humidity;
-	float temp_celsius;
-} dht_reading;
-
-void read_from_dht(dht_reading *result);
+// debounce
+bool is_debounceing = false;
+const uint DEBOUNCE_MS = 50;
+const uint ANEMOMETER_DEBOUNCER_ID = 0;
+const uint RAIN_DEBOUNCER_ID = 1;
+bool debouncers[2] = {false, false};
+int64_t debounce_alarm_callback(alarm_id_t id, void *user_data) {
+	is_debounceing = false;
+	return 0;
+}
+int64_t debounce_alarm_callback2(alarm_id_t id, void *user_data) {
+	// TODO: BUG: this is getting `0` when it should get `1`
+	int debouncer_id = *(int*)user_data;
+	printf("debouncer_id cb: %i\n", debouncer_id);
+	debouncers[debouncer_id] = false;
+	return 0;
+}
+bool debounce2(int debouncer_id) {
+	if (!debouncers[debouncer_id]) {
+		printf("debouncer_id: %i\n", debouncer_id);
+		add_alarm_in_ms(DEBOUNCE_MS, &debounce_alarm_callback2, &debouncer_id, false);
+		debouncers[debouncer_id] = true;
+		return false;
+	}
+	return true;
+}
+bool debounce() {
+	if (!is_debounceing) {
+		add_alarm_in_ms(DEBOUNCE_MS, &debounce_alarm_callback, NULL, false);
+		is_debounceing = true;
+		return false;
+	}
+	return true;
+}
 
 void gpio_cb(uint gpio, uint32_t events) {
 	if (gpio == ANEMOMETER_PIN) {
 		gpio_wind_cb_cnt++;
 	}
 	if (gpio == RAIN_PIN) {
+		// if (debounce2(RAIN_DEBOUNCER_ID)) return;
+		if (debounce()) return;
 		gpio_rain_cb_cnt++;
 	}
 }
+
+typedef struct {
+	bool crc_match;
+	float humidity;
+	float temp_celsius;
+} dht_reading;
+void read_from_dht(dht_reading *result);
 
 float calc_rainfall_in(int tips) {
 	float rainfall_mm = tips * RAIN_TIP_MM;
@@ -83,8 +118,10 @@ int main() {
 	gpio_set_dir(LED_PIN, GPIO_OUT);
 #endif
 
-	gpio_set_pulls(ANEMOMETER_PIN, false, true);  // pull down
-	gpio_set_pulls(RAIN_PIN, false, true);  // pull down
+	// gpio_set_pulls(ANEMOMETER_PIN, false, true);  // pull down
+	// gpio_set_pulls(RAIN_PIN, false, true);  // pull down
+	gpio_pull_down(ANEMOMETER_PIN);
+	gpio_pull_down(RAIN_PIN);
 	gpio_set_irq_enabled_with_callback(ANEMOMETER_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_cb);
 	gpio_set_irq_enabled_with_callback(RAIN_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_cb);
 
