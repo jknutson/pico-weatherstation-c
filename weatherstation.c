@@ -86,6 +86,7 @@ int main() {
 	gpio_set_pulls(ANEMOMETER_PIN, false, true);  // pull down
 	gpio_set_pulls(RAIN_PIN, false, true);  // pull down
 	gpio_set_irq_enabled_with_callback(ANEMOMETER_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_cb);
+	gpio_set_irq_enabled_with_callback(RAIN_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_cb);
 
 	adc_init();
 	adc_gpio_init(26);
