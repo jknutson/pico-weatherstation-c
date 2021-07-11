@@ -16,13 +16,13 @@ Ultimately the project has made some even greater deviations, to the point of it
 
 ### Argent Wind / Rain Sensor Assembly
 
-![Image of Wind and Rain Sensor Assembly mounted outside](./img/weatherstation1.jpg)
-
 This package includes an anemometer and wind vane for measuring wind speed and direction, a tipping bucket type rain gauge with 0.011 inch resolution, a metal mast, cables, and mounting hardware.
 
 (Description from Argent website)
 
 https://www.argentdata.com/catalog/product\_info.php?products\_id=145
+
+![Image of Wind and Rain Sensor Assembly mounted outside](./img/weatherstation1.jpg)
 
 ### Raspberry Pi Pico
 
