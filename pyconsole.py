@@ -16,7 +16,7 @@ except ConnectionRefusedError:
     exit(1)
 
 publish_interval = 30  # seconds
-publish_every = True  # emit every sample as well as mean
+publish_every = False  # emit every sample as well as mean
 
 # TODO: make this a dict of sensordata, or class
 # sensors[sensorname].append(data)
@@ -30,9 +30,10 @@ with serial.Serial('/dev/ttyACM0', 115200) as ser:
     start = time.time()
     while(True):
         line = ser.readline().strip().decode('ascii')
+        print(line)
         if line[0] == '{':
             data = json.loads(line)
-            print(data)
+            # print(data)  # print every line
             keys = data.keys()
             # TODO: DRY up this if block, make generic fn for append, if, publish
             if 'wind_speed' in keys:
@@ -40,12 +41,12 @@ with serial.Serial('/dev/ttyACM0', 115200) as ser:
                 if publish_every:
                     print('publishing wind_speed')
                     client.publish('iot/pico/wind_speed', payload=data['wind_speed'])
-            if 'wind_direction_deg' in keys:
-                if data['wind_direction_deg'] <= 337.5: # anything greater is "invalid"
-                    wind_direction_data.append(data['wind_direction_deg'])
+            if 'wind_angle' in keys:
+                if data['wind_angle'] <= 337.5: # anything greater is "invalid"
+                    wind_direction_data.append(data['wind_angle'])
                     if publish_every:
-                        print('publishing wind_direction_deg')
-                        client.publish('iot/pico/wind_direction_deg', payload=data['wind_direction_deg'])
+                        print('publishing wind_angle')
+                        client.publish('iot/pico/wind_angle', payload=data['wind_angle'])
             if 'humidity' in keys:
                 humidity_data.append(data['humidity'])
                 if publish_every:
@@ -60,26 +61,32 @@ with serial.Serial('/dev/ttyACM0', 115200) as ser:
             print('publishing averages')
             if len(wind_speed_data) > 0:
                 wind_speed_avg = mean(wind_speed_data)
+                print(f" wind_speed_avg: {wind_speed_avg}")
                 client.publish('iot/pico/wind_speed_avg', payload=wind_speed_avg)
                 wind_speed_data = []
             if len(wind_direction_data) > 0:
                 # use mode (most common) here, as we are measuring discrete values/chunks
                 # averaging the degrees wouldn't (always) make sense
                 try:
-                    wind_direction_avg = mode(wind_direction_data)
-                    client.publish('iot/pico/wind_direction_avg', payload=wind_direction_avg)
-                    wind_direction_data = []
+                    wind_angle_avg = mode(wind_direction_data)
+                    print(f" wind_angle_avg: {wind_angle_avg}")
+                    client.publish('iot/pico/wind_angle_avg', payload=wind_angle_avg)
+                    wind_angle_data = []
                 except StatisticsError:
                     # sometimes there are multiple modes, e.g. [1,1,2,2,3]
-                    # in python3.8 we can use multimode, for now we punt on it
+                    # in python3.8 we can use multimode, for now we just publish a value
+                    print(f" wind_angle_data[0]: {wind_angle_data[0]}")
+                    client.publish('iot/pico/wind_angle_avg', payload=wind_direction_data[0])
                     pass
             if len(humidity_data) > 0:
                 humidity_avg = mean(humidity_data)
                 client.publish('iot/pico/humidity_avg', payload=humidity_avg)
+                print(f" humidity_avg: {humidity_avg}")
                 humidity_data = []
             if len(temperature_data) > 0:
                 temperature_avg = mean(temperature_data)
                 client.publish('iot/pico/temperature_avg', payload=temperature_avg)
+                print(f" temperature_avg: {temperature_avg}")
                 temperature_data = []
             start = time.time()  # reset counter
 
