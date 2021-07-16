@@ -100,10 +100,6 @@ int main() {
 	adc_select_input(0);
 
 	for (;;) {
-		// read ADC
-		uint8_t sel_input = adc_get_selected_input();
-		uint16_t result = adc_read();
-		float result_v = result * ADC_CONVERSION_FACTOR;
 		// read DHT
 		dht_reading reading;
 		reading.crc_match = false;
@@ -112,10 +108,19 @@ int main() {
 		if (reading.crc_match) {
 			printf("{\"humidity\": %.1f, \"temperature_f\": %.1f}\n", reading.humidity, fahrenheit);
 		}
+
+		// read ADC
+		// uint8_t sel_input = adc_get_selected_input();
+		uint16_t wind_result = adc_read();
+		float wind_result_v = wind_result * ADC_CONVERSION_FACTOR;
 		// calculate wind angle
-		if (sel_input == 0) {
-			printf("{\"wind_angle\": %f}\n", get_angle(R2, VIN, result_v));
-		}
+		adc_select_input(0);
+		printf("{\"wind_angle\": %f}\n", get_angle(R2, VIN, wind_result_v));
+		adc_select_input(1);
+		uint16_t p_result = adc_read();
+		float p_result_v = p_result * ADC_CONVERSION_FACTOR;
+		// R2 = 10,000k ohm
+		printf("{\"photocell_v\": %f, \"photocell_o\": %f}\n", p_result_v, r1(10000, VIN, p_result_v));
 		// calculate wind speed
 		float wind_speed_kmh = calc_wind_speed_kmh(gpio_cb_cnt);
 		float wind_speed_mph = kmh_to_mph(wind_speed_kmh);
