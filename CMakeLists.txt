@@ -11,21 +11,26 @@ set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
 add_compile_options(-Wall
-        -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
-        -Wno-unused-function # we have some for the docs that aren't called
-        -Wno-maybe-uninitialized
-        )
+	-Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
+	-Wno-unused-function # we have some for the docs that aren't called
+	-Wno-maybe-uninitialized
+	)
 
 add_executable(weatherstation
-        weatherstation.c
+	weatherstation.c
 	wind_direction.c
-        )
+	)
 
 # Pull in our pico_stdlib which pulls in commonly used features
 target_link_libraries(weatherstation pico_stdlib hardware_adc hardware_irq)
 
-pico_enable_stdio_usb(weatherstation 1)
-pico_enable_stdio_uart(weatherstation 0)
+# enable USB UART output, disable GPIO UART output
+#pico_enable_stdio_usb(weatherstation 1)
+#pico_enable_stdio_uart(weatherstation 0)
+
+# enable GPIO UART output, disable USB UART output
+pico_enable_stdio_usb(weatherstation 0)
+pico_enable_stdio_uart(weatherstation 1)
 
 # create map/bin/hex file etc.
 pico_add_extra_outputs(weatherstation)
