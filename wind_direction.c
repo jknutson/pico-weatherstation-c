@@ -4,6 +4,8 @@
 #include <string.h>
 #include "wind_direction.h"
 
+// TODO: rename to wind.c
+
 const float angles[16][2] = {  // TODO: move to separate file
 	{0,  33000},
 	{22.5, 6570},
