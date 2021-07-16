@@ -96,14 +96,14 @@ int main() {
 	// gpio_set_irq_enabled_with_callback(ANEMOMETER_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_cb);
 
 	adc_init();
-	adc_gpio_init(26);
-	adc_select_input(0);
+	// TODO: try round robin sampling
+	adc_set_round_robin(0x19); // 0x19 = 11001  // ADC0, ADC1, & ADC4
+	const int adc_input_cnt = 3;  // number of inputs, could make a fn to count the set bits
+	adc_gpio_init(26);  // wind direction
+	adc_gpio_init(27);  // photocell
+	adc_select_input(0);  // wind direction
 
 	for (;;) {
-		// read ADC
-		uint8_t sel_input = adc_get_selected_input();
-		uint16_t result = adc_read();
-		float result_v = result * ADC_CONVERSION_FACTOR;
 		// read DHT
 		dht_reading reading;
 		reading.crc_match = false;
@@ -112,15 +112,33 @@ int main() {
 		if (reading.crc_match) {
 			printf("{\"humidity\": %.1f, \"temperature_f\": %.1f}\n", reading.humidity, fahrenheit);
 		}
-		// calculate wind angle
-		if (sel_input == 0) {
-			printf("{\"wind_angle\": %f}\n", get_angle(R2, VIN, result_v));
-		}
+
 		// calculate wind speed
 		float wind_speed_kmh = calc_wind_speed_kmh(gpio_cb_cnt);
 		float wind_speed_mph = kmh_to_mph(wind_speed_kmh);
 		printf("{\"wind_speed\": %.2f, \"wind_speed_kmh\": %.2f, \"gpio_cb_cnt\": %i}\n", wind_speed_mph, wind_speed_kmh, gpio_cb_cnt);
 		reset_speed_counter(&gpio_cb_cnt);
+
+		// read ADC
+		for(int i = 0; i < adc_input_cnt; i++) {
+			uint8_t sel_input = adc_get_selected_input();
+			uint16_t result = adc_read();
+			float result_v = result * ADC_CONVERSION_FACTOR;
+			// calculate wind angle
+			if (sel_input == 0) {
+				printf("{\"wind_angle\": %f}\n", get_angle(R2, VIN, result_v));
+			}
+			if (sel_input == 1) {
+				//R1 =10kOhm
+				printf("{\"photocell_v\": %f, \"photocell_r:\" %f}\n", result_v, r1(10000.0, VIN, result_v));
+			}
+			if (sel_input == 4) {
+				float internal_temp_c = 27 - (result_v - 0.706) / 0.001721;
+				float internal_temp_f = internal_temp_c * 9 / 5 + 32;
+				printf("{\"internal_temp_v\": %f, \"internal_temp_f\": %f}\n", result_v, internal_temp_f);
+			}
+		}
+
 		sleep_ms(SLEEP_INTERVAL_MS);
 	}
 }
