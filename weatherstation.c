@@ -75,7 +75,7 @@ int main() {
 	gpio_init(LED_PIN);
 	gpio_set_dir(LED_PIN, GPIO_OUT);
 #endif
-	gpio_pull_up(ANEMOMETER_PIN);
+	gpio_pull_down(ANEMOMETER_PIN);
 	irq_set_exclusive_handler(IO_IRQ_BANK0, gpio_cb);
 	gpio_set_irq_enabled(ANEMOMETER_PIN, GPIO_IRQ_EDGE_RISE, true);
 	irq_set_enabled(IO_IRQ_BANK0, true);
