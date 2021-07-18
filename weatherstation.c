@@ -19,10 +19,8 @@
 
 const uint DHT_PIN = 15;
 const uint MAX_TIMINGS = 85;
-const uint CM_IN_KM = 100000.0;
-const uint SECS_IN_HOUR = 3600;
-const float ANEMOMETER_RADIUS = 9;  // cm
-const uint ANEMOMETER_PIN = 2;
+const uint ANEMOMETER_PIN = 21;
+const float ANEMOMETER_RADIUS = 9.0;
 const uint ANEMOMETER_DEBOUNCE_MS = 20;
 // 12-bit conversion, assume max value == ADC_VREF == 3.3 V
 const float ADC_CONVERSION_FACTOR = 3.3f / (1 << 12);
@@ -63,20 +61,9 @@ void gpio_cb() {
 	gpio_cb_cnt++;
 }
 
-float calc_wind_speed_kmh(int rotations) {
-	// speed = ( (signals/2) * (2 * pi * radius) ) / time
-	float speed_km_s = ((rotations / 2) * (2 * 3.1415 * ANEMOMETER_RADIUS)) / CM_IN_KM;
-	float speed_kmh = speed_km_s * SECS_IN_HOUR;
-	return speed_kmh;
-}
-
-float kmh_to_mph(float kmh) {
-	return (kmh * 0.621371);
-}
-
 void reset_speed_counter(int* count) {
 #ifdef DEBUG
-	printf("resetting counter %i -> 0\n", *count);
+	printf("{\"msg\": \"resetting counter %i -> 0\"}\n", *count);
 #endif
 	*count = 0;
 }
@@ -88,7 +75,7 @@ int main() {
 	gpio_init(LED_PIN);
 	gpio_set_dir(LED_PIN, GPIO_OUT);
 #endif
-	gpio_set_pulls(ANEMOMETER_PIN, false, true);  // pull down
+	gpio_pull_up(ANEMOMETER_PIN);
 	irq_set_exclusive_handler(IO_IRQ_BANK0, gpio_cb);
 	gpio_set_irq_enabled(ANEMOMETER_PIN, GPIO_IRQ_EDGE_RISE, true);
 	irq_set_enabled(IO_IRQ_BANK0, true);
@@ -117,7 +104,7 @@ int main() {
 			printf("{\"wind_angle\": %f}\n", get_angle(R2, VIN, result_v));
 		}
 		// calculate wind speed
-		float wind_speed_kmh = calc_wind_speed_kmh(gpio_cb_cnt);
+		float wind_speed_kmh = calc_wind_speed_kmh(gpio_cb_cnt, ANEMOMETER_RADIUS);
 		float wind_speed_mph = kmh_to_mph(wind_speed_kmh);
 		printf("{\"wind_speed\": %.2f, \"wind_speed_kmh\": %.2f, \"gpio_cb_cnt\": %i}\n", wind_speed_mph, wind_speed_kmh, gpio_cb_cnt);
 		reset_speed_counter(&gpio_cb_cnt);
@@ -175,7 +162,7 @@ void read_from_dht(dht_reading *result) {
 	} else {
 		result->crc_match = false;
 #ifdef DEBUG
-		printf("CRC mismatch - crc:%i actual:%i\n", data[4], ((data[0] + data[1] + data[2] + data[3]) & 0xFF));
+		printf("{\"msg\": \"CRC mismatch - crc:%i actual:%i\"}\n", data[4], ((data[0] + data[1] + data[2] + data[3]) & 0xFF));
 #endif
 	}
 }
