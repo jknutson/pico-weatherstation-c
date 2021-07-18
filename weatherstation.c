@@ -24,7 +24,7 @@ const uint SECS_IN_HOUR = 3600;
 const float MM_TO_IN = 0.0393701;
 const float RAIN_TIP_MM = 0.2794;  // 1 tip = 0.2794mm of rain
 const float ANEMOMETER_RADIUS = 9;  // cm
-const uint ANEMOMETER_PIN = 2;
+const uint ANEMOMETER_PIN = 21;
 const uint RAIN_PIN = 3;
 // 12-bit conversion, assume max value == ADC_VREF == 3.3 V
 const float ADC_CONVERSION_FACTOR = 3.3f / (1 << 12);
@@ -120,7 +120,7 @@ int main() {
 
 	// gpio_set_pulls(ANEMOMETER_PIN, false, true);  // pull down
 	// gpio_set_pulls(RAIN_PIN, false, true);  // pull down
-	gpio_pull_down(ANEMOMETER_PIN);
+	gpio_pull_up(ANEMOMETER_PIN);
 	gpio_pull_down(RAIN_PIN);
 	gpio_set_irq_enabled_with_callback(ANEMOMETER_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_cb);
 	gpio_set_irq_enabled_with_callback(RAIN_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_cb);
