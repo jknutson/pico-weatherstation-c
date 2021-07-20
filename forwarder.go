@@ -10,6 +10,8 @@ import (
 	"os/signal"
 	"regexp"
 	"syscall"
+	"time"
+	"strconv"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/tarm/serial"
@@ -19,6 +21,7 @@ import (
 var (
 	//BuildVersion is passed at build: `-X main.BuildVersion=0.1.0`
 	BuildVersion                  string
+	samplePeriod                  string = "30s"
 	serialPort                    string
 	serialPortDefault             string = "/dev/ttyACM0"
 	serialBaud                    int
@@ -30,29 +33,23 @@ var (
 	verbose, version              bool
 )
 
-// TODO: make generic message type,
-//       update pico to emit data type as field
-
-// DHTMessage represents JSON message of DHT11/22 sensor data
-type DHTMessage struct {
-	Humidity     float64 `json:"humidity"`
-	TemperatureF float64 `json:"temperature_f"`
+// Sample...
+type Sample struct {
+	Points []float64
 }
 
-// WindAngleMessage represents JSON message of wind angle in degrees (0 = N)
-type WindAngleMessage struct {
-	WindAngle float64 `json:"wind_angle"`
-}
-
-//WindSpeedMessage represnets JSON message of wind speed in mph
-type WindSpeedMessage struct {
-	WindSpeed float64 `json:"wind_speed"`
+func (s Sample) Mean() float64 {
+	var sum float64 = 0
+	for i := 0; i < len(s.Points); i++ {
+		sum += s.Points[i]
+	}
+	return sum / float64(len(s.Points))
 }
 
 func usage() {
-	println(`Usage: pico-weather-reader [options]
-Read data from Serial port and emit to MQTT
-Options:`)
+	println(`Usage: forwarder [options]
+	Read data from Serial port and emit to MQTT
+	Options:`)
 	flag.PrintDefaults()
 	println(`For more information, see https://github.com/jknutson/pico-weatherstation-c`)
 }
@@ -109,8 +106,19 @@ func main() {
 		panic(token.Error())
 	}
 
+	// setup stats/samples
+	var dhtHumiditySample Sample
+	// dhtTemperatureSample Sample{}
+	start := time.Now()
+	samplePeriod = "5s" // for testing
+	sampleDuration, err := time.ParseDuration(samplePeriod)
+	if err != nil {
+		panic(err)
+	}
+
 	log.Printf("reading from %s\n", serialPort)
 	for {
+		// TODO: try moving reader outside for loop
 		reader := bufio.NewReader(s)
 		line, err := reader.ReadString('\r')
 		if err != nil && err != io.EOF {
@@ -138,6 +146,11 @@ func main() {
 					log.Printf("DHT: %s", line)
 				}
 				dhtMatches := dhtRe.FindAllStringSubmatch(line, -1)
+				dhtHumidityFlt, err := strconv.ParseFloat(dhtMatches[0][1], 64)
+				if err != nil {
+					panic(err)  // TODO: handle this better
+				}
+				dhtHumiditySample.Points = append(dhtHumiditySample.Points, dhtHumidityFlt)
 				token := c.Publish(fmt.Sprintf("%s/dht/humidity", mqTopic), 0, false, dhtMatches[0][1])
 				token.Wait()
 				if token.Error() != nil {
@@ -176,9 +189,19 @@ func main() {
 				log.Printf("other: %s", line)
 			}
 
+
 			dhtMatched = false
 			windAngleMatched = false
 			windSpeedMatched = false
+		}
+
+		if time.Since(start) >= sampleDuration {
+			token := c.Publish(fmt.Sprintf("%s/dht/humidity_avg", mqTopic), 0, false, dhtHumiditySample.Mean())
+			token.Wait()
+			if token.Error() != nil {
+				log.Printf("mq publish error: %s\n", token.Error())
+			}
+			start = time.Now()
 		}
 	}
 }
