@@ -21,7 +21,7 @@ import (
 var (
 	//BuildVersion is passed at build: `-X main.BuildVersion=0.1.0`
 	BuildVersion                  string
-	samplePeriod                  string = "60s"
+	samplePeriod                  string = "10s"
 	serialPort                    string
 	serialPortDefault             string = "/dev/ttyACM0"
 	serialBaud                    int
@@ -48,6 +48,15 @@ func (s Sample) Mean() float64 {
 
 func (s Sample) MeanS() string {
 	return fmt.Sprintf("%.2f", s.Mean())
+}
+
+func (s Sample) AddPointS(p string) error {
+	point_f, err := strconv.ParseFloat(p, 64)
+	if err != nil {
+		return err
+	}
+	s.Points = append(s.Points, point_f)
+	return nil
 }
 
 func usage() {
@@ -116,7 +125,7 @@ func main() {
 
 	// setup stats/samples
 	var dhtHumiditySample Sample
-	// dhtTemperatureSample Sample{}
+	var dhtTemperatureSample Sample
 	start := time.Now()
 	sampleDuration, err := time.ParseDuration(samplePeriod)
 	if err != nil {
@@ -153,16 +162,20 @@ func main() {
 					log.Printf("DHT: %s", line)
 				}
 				dhtMatches := dhtRe.FindAllStringSubmatch(line, -1)
-				dhtHumidityFlt, err := strconv.ParseFloat(dhtMatches[0][1], 64)
+				err = dhtHumiditySample.AddPointS(dhtMatches[0][1])
 				if err != nil {
 					panic(err)  // TODO: handle this better
 				}
-				dhtHumiditySample.Points = append(dhtHumiditySample.Points, dhtHumidityFlt)
 				log.Printf("publishing %s %s\n", dhtHumidityTopic, dhtMatches[0][1])
 				token := c.Publish(dhtHumidityTopic, 0, false, dhtMatches[0][1])
 				token.Wait()
 				if token.Error() != nil {
 					log.Printf("mq publish error: %s\n", token.Error())
+				}
+				log.Printf("%q\n", dhtTemperatureSample)
+				err = dhtTemperatureSample.AddPointS(dhtMatches[0][2])
+				if err != nil {
+					panic(err)  // TODO: handle this better
 				}
 				log.Printf("publishing %s %s\n", dhtTemperatureTopic, dhtMatches[0][2])
 				token = c.Publish(dhtTemperatureTopic, 0, false, dhtMatches[0][2])
@@ -208,6 +221,7 @@ func main() {
 
 		if time.Since(start) >= sampleDuration {
 			dhtHumidityAvgTopic := fmt.Sprintf("%s_avg", dhtHumidityTopic)
+			// TODO: bug here, the MeanS returns NaN, slice of Points is empty
 			dhtHumidityAvgPayload := dhtHumiditySample.MeanS()
 			log.Printf("publishing %s %s\n", dhtHumidityAvgTopic, dhtHumidityAvgPayload)
 			token := c.Publish(dhtHumidityAvgTopic, 0, false, dhtHumidityAvgPayload)
@@ -215,6 +229,15 @@ func main() {
 			if token.Error() != nil {
 				log.Printf("mq publish error: %s\n", token.Error())
 			}
+			dhtTemperatureAvgTopic := fmt.Sprintf("%s_avg", dhtTemperatureTopic)
+			dhtTemperatureAvgPayload := dhtTemperatureSample.MeanS()
+			log.Printf("publishing %s %s\n", dhtTemperatureAvgTopic, dhtTemperatureAvgPayload)
+			token = c.Publish(dhtTemperatureAvgTopic, 0, false, dhtTemperatureAvgPayload)
+			token.Wait()
+			if token.Error() != nil {
+				log.Printf("mq publish error: %s\n", token.Error())
+			}
+
 			start = time.Now()
 		}
 	}
