@@ -9,9 +9,9 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"strconv"
 	"syscall"
 	"time"
-	"strconv"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/tarm/serial"
@@ -111,7 +111,6 @@ func main() {
 	windAngleRe := regexp.MustCompile(`.*\"wind_angle\"\:\s*(\d+\.\d+).*`)
 	windSpeedRe := regexp.MustCompile(`.*\"wind_speed\"\:\s*(\d+\.\d+).*`)
 
-
 	// setup MQTT client
 	mqOpts := MQTT.NewClientOptions().AddBroker(mqBroker)
 	mqOpts.SetClientID(mqClientID)
@@ -164,7 +163,7 @@ func main() {
 				dhtMatches := dhtRe.FindAllStringSubmatch(line, -1)
 				err = dhtHumiditySample.AddPointS(dhtMatches[0][1])
 				if err != nil {
-					panic(err)  // TODO: handle this better
+					panic(err) // TODO: handle this better
 				}
 				log.Printf("publishing %s %s\n", dhtHumidityTopic, dhtMatches[0][1])
 				token := c.Publish(dhtHumidityTopic, 0, false, dhtMatches[0][1])
@@ -175,7 +174,7 @@ func main() {
 				log.Printf("%q\n", dhtTemperatureSample)
 				err = dhtTemperatureSample.AddPointS(dhtMatches[0][2])
 				if err != nil {
-					panic(err)  // TODO: handle this better
+					panic(err) // TODO: handle this better
 				}
 				log.Printf("publishing %s %s\n", dhtTemperatureTopic, dhtMatches[0][2])
 				token = c.Publish(dhtTemperatureTopic, 0, false, dhtMatches[0][2])
@@ -212,7 +211,6 @@ func main() {
 					log.Printf("other: %q", line)
 				}
 			}
-
 
 			dhtMatched = false
 			windAngleMatched = false
