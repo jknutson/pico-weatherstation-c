@@ -19,13 +19,9 @@
 
 const uint DHT_PIN = 15;
 const uint MAX_TIMINGS = 85;
-const uint CM_IN_KM = 100000.0;
-const uint SECS_IN_HOUR = 3600;
-const float MM_TO_IN = 0.0393701;
-const float RAIN_TIP_MM = 0.2794;  // 1 tip = 0.2794mm of rain
-const float ANEMOMETER_RADIUS = 9;  // cm
 const uint ANEMOMETER_PIN = 21;
-const uint RAIN_PIN = 3;
+const float ANEMOMETER_RADIUS = 9.0;
+const uint ANEMOMETER_DEBOUNCE_MS = 20;
 // 12-bit conversion, assume max value == ADC_VREF == 3.3 V
 const float ADC_CONVERSION_FACTOR = 3.3f / (1 << 12);
 const int SLEEP_INTERVAL_MS = 5000; // ms
@@ -81,31 +77,10 @@ void gpio_cb(uint gpio, uint32_t events) {
 	}
 }
 
-typedef struct {
-	bool crc_match;
-	float humidity;
-	float temp_celsius;
-} dht_reading;
-void read_from_dht(dht_reading *result);
-
-float calc_rainfall_in(int tips) {
-	float rainfall_mm = tips * RAIN_TIP_MM;
-	return rainfall_mm * MM_TO_IN;
-}
-
-// TODO: move wind stuff to wind_direction.c
-float calc_wind_speed_kmh(int rotations) {
-	// speed = ( (signals/2) * (2 * pi * radius) ) / time
-	float speed_km_s = ((rotations / 2) * (2 * 3.1415 * ANEMOMETER_RADIUS)) / CM_IN_KM;
-	float speed_kmh = speed_km_s * SECS_IN_HOUR;
-	return speed_kmh;
-}
-
-float kmh_to_mph(float kmh) {
-	return (kmh * 0.621371);
-}
-
-void reset_counter(int* count) {
+void reset_speed_counter(int* count) {
+#ifdef DEBUG
+	printf("{\"msg\": \"resetting counter %i -> 0\"}\n", *count);
+#endif
 	*count = 0;
 }
 
@@ -147,7 +122,7 @@ int main() {
 			printf("{\"wind_angle\": %f}\n", get_angle(R2, VIN, result_v));
 		}
 		// calculate wind speed
-		float wind_speed_kmh = calc_wind_speed_kmh(gpio_wind_cb_cnt);
+		float wind_speed_kmh = calc_wind_speed_kmh(gpio_cb_cnt, ANEMOMETER_RADIUS);
 		float wind_speed_mph = kmh_to_mph(wind_speed_kmh);
 		printf("{\"wind_speed\": %.2f, \"wind_speed_kmh\": %.2f, \"gpio_wind_cb_cnt\": %i}\n", wind_speed_mph, wind_speed_kmh, gpio_wind_cb_cnt);
 #ifdef DEBUG
@@ -214,7 +189,7 @@ void read_from_dht(dht_reading *result) {
 	} else {
 		result->crc_match = false;
 #ifdef DEBUG
-		printf("CRC mismatch - crc:%i actual:%i\n", data[4], ((data[0] + data[1] + data[2] + data[3]) & 0xFF));
+		printf("{\"msg\": \"CRC mismatch - crc:%i actual:%i\"}\n", data[4], ((data[0] + data[1] + data[2] + data[3]) & 0xFF));
 #endif
 	}
 }

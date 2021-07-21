@@ -4,7 +4,8 @@
 #include <string.h>
 #include "wind_direction.h"
 
-// TODO: rename to wind.c
+const float CM_IN_KM = 100000.0;
+const float SECS_IN_HOUR = 3600.0;
 
 const float angles[16][2] = {  // TODO: move to separate file
 	{0,  33000},
@@ -55,20 +56,29 @@ void get_direction4(float ang, char *direction) {
 	switch((int)ang/90) {
 		case 0 :
 		case 4 :
-			strncpy(direction, "north", 5);
+			strncpy(direction, "north", 6);
 			break;
 		case 1 :
-			strncpy(direction, "east", 4);
+			strncpy(direction, "east", 6);
 			break;
 		case 2 :
-			strncpy(direction, "south", 5);
+			strncpy(direction, "south", 6);
 			break;
 		case 3 :
-			strncpy(direction, "west", 4);
+			strncpy(direction, "west", 6);
 			break;
 	}
-	// TODO: does it matter that we don't "fill" `direction` for east/west?
 	direction[5] = '\0';
+}
+
+float calc_wind_speed_kmh(int rotations, int radius) {
+	float speed_km_s = ((rotations / 2.0) * (2.0 * 3.1415 * (float)radius)) / CM_IN_KM;
+	float speed_kmh = speed_km_s * SECS_IN_HOUR;
+	return speed_kmh;
+}
+
+float kmh_to_mph(float kmh) {
+	return (kmh * 0.621371);
 }
 
 float deg2rad(float deg) {
