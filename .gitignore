@@ -20,3 +20,5 @@ weatherstation.elf.map
 weatherstation.hex
 weatherstation.uf2
 *.local
+
+forwarder/forwarder
