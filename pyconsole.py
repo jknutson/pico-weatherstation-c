@@ -82,16 +82,19 @@ with serial.Serial('/dev/ttyACM0', 115200) as ser:
             #         pass
             if len(humidity_data) > 0:
                 humidity_avg = mean(humidity_data)
-                client.publish('iot/pico/humidity_avg', payload=humidity_avg)
-                print(f" humidity_avg: {humidity_avg}")
+                res = client.publish('iot/pico/humidity_avg', payload=humidity_avg)
+                if res.rc > 0:
+                    print('Message publish failed: %s' % (error_string(self.rc)))
+                print(f" humidity_avg: {humidity_avg} ({mqtt.error_string(res.rc)})")
                 humidity_data = []
             if len(temperature_data) > 0:
                 temperature_avg = mean(temperature_data)
-                client.publish('iot/pico/temperature_avg', payload=temperature_avg)
-                print(f" temperature_avg: {temperature_avg}")
+                res = client.publish('iot/pico/temperature_avg', payload=temperature_avg)
+                print(f" temperature_avg: {temperature_avg} ({mqtt.error_string(res.rc)})")
                 temperature_data = []
             if len(humidity_data) > 0 and len(temperature_data) > 0:
                 json_data = json.dumps({"temperature_avg": temperature_avg, "humidity_avg": humidity_avg})
-                client.publish('iot/pico/readings_json', payload=json_data)
+                res = client.publish('iot/pico/readings_json', payload=json_data)
+                print(f" temperature/humidity json published ({mqtt.error_string(res.rc)})")
                 json_data = None
             start = time.time()  # reset counter
