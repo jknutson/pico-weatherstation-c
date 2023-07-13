@@ -26,6 +26,8 @@ wind_direction_data = []
 humidity_data = []
 temperature_data = []
 
+client.loop_start()
+
 with serial.Serial('/dev/ttyACM0', 115200) as ser:
     start = time.time()
     while(True):
